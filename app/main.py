@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, render_template, current_app
-from model_utils import *  # Ensure your model loading and prediction functions are here
+from model_utils import *  
 import io
 from PIL import Image
 
@@ -8,6 +8,8 @@ app = Flask(__name__)
 # Define allowed file extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
+# load the model and quantize it 
+model = initialize_quantized_model()
 # Check if the file extension is allowed
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -29,15 +31,16 @@ def predict():
             return jsonify({'error': 'Unsupported file format'}), 400
         
         try:
-            img = Image.open(io.BytesIO(file.read()))
-            model = setup_model()
-            label, prob = predict_image(model, img)
-            data = {'label': label, 'prob': prob}
+            img = Image.open(io.BytesIO(file.read()))  # Open the image from the uploaded file
+            model = setup_model()  # Load the model
+            label, prob = predict_image(model, img)  # Get prediction from the model
+            data = {'label': label, 'prob': prob}  # Prepare the prediction data
             current_app.logger.debug("Prediction successful")
             return jsonify(data), 200
         except Exception as e:
             current_app.logger.debug(f"Error during prediction: {e}")
             return jsonify({'error': f'Error during prediction: {e}'}), 500
+
 
 
 # Webpage endpoint for prediction (renders HTML page)
@@ -51,7 +54,6 @@ def html_predict():
     
     try:
         img = Image.open(io.BytesIO(file.read()))  # Open the image from the uploaded file
-        model = setup_model()  # Ensure model is set up
         label, prob = predict_image(model, img)  # Get prediction from the model
         return render_template('home.html', label=label, probability=prob)
     except Exception as e:
