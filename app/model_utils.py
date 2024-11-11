@@ -12,14 +12,24 @@ class_names = [
 ]
 
 # Function to load the pre-trained model and setup
-def setup_model(model_path='..\models\\final_model.pth'):
+def setup_model(model_path=r'..\models\\final_model.pth'):
     """
     Load the VGG16 model, modify the final layer, and load saved weights.
     """
-    model = models.vgg16(pretrained=False)  # Load VGG16 without pre-trained weights
+    model = models.vgg16(weights=None)  # Load VGG16 without pre-trained weights
     model.classifier[6] = torch.nn.Linear(in_features=4096, out_features=len(class_names))  # Modify for 10 classes
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))  # Load the saved weights
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'),weights_only=True))  # Load the saved weights
     model.eval()  # Set the model to evaluation mode
+    return model
+
+def initialize_quantized_model(path =r'..\models\pruned_quantized_model.pth'):
+    model = models.vgg16(weights=None)
+    model.classifier[6] = torch.nn.Linear(in_features=4096, out_features=10)
+    model = torch.quantization.quantize_dynamic(
+        model, {torch.nn.Linear}, dtype=torch.qint8
+    )
+    model.load_state_dict(torch.load(path,map_location=torch.device('cpu'),weights_only=True))
+    model.eval()
     return model
 
 # Function to preprocess the image and predict the class
@@ -46,3 +56,12 @@ def predict_image(model, image):
         predicted_probability = round(probabilities[0][predicted_class].item() * 100,2)  # Get the probability
 
     return predicted_class_label, predicted_probability
+
+# Apply dynamic quantization to pruned model
+pruned_model = torch.quantization.quantize_dynamic(
+    setup_model(),  # Your pruned model
+    {torch.nn.Linear},  # Layers to quantize (you can add more types)
+    dtype=torch.qint8  # Use int8 quantization
+)
+
+
