@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, current_app
 from model_utils import *  # Ensure your model loading and prediction functions are here
 import io
 from PIL import Image
@@ -22,18 +22,23 @@ def predict():
     if request.method == 'POST':
         file = request.files.get('file')
         if file is None or file.filename == '':
-            return jsonify({'error': 'No file uploaded'})
+            current_app.logger.debug("No file uploaded")
+            return jsonify({'error': 'No file uploaded'}), 400
         if not allowed_file(file.filename):
-            return jsonify({'error': 'Unsupported file format'})
+            current_app.logger.debug("Unsupported file format")
+            return jsonify({'error': 'Unsupported file format'}), 400
         
         try:
-            img = Image.open(io.BytesIO(file.read()))  # Open the image from the uploaded file
-            model = setup_model()  # Ensure the model setup function works
-            label, prob = predict_image(model, img)  # Get prediction from the model
-            data = {'label': label, 'prob': prob}  # Prepare the prediction data
-            return jsonify(data)
+            img = Image.open(io.BytesIO(file.read()))
+            model = setup_model()
+            label, prob = predict_image(model, img)
+            data = {'label': label, 'prob': prob}
+            current_app.logger.debug("Prediction successful")
+            return jsonify(data), 200
         except Exception as e:
-            return jsonify({'error': f'Error during prediction: {e}'})
+            current_app.logger.debug(f"Error during prediction: {e}")
+            return jsonify({'error': f'Error during prediction: {e}'}), 500
+
 
 # Webpage endpoint for prediction (renders HTML page)
 @app.route('/predict', methods=['POST'])
